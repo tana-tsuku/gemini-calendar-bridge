@@ -1,7 +1,6 @@
 # gemini-calendar-bridge
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
-[![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-Automated-2088FF.svg)](https://github.com/features/actions)
 
 Gemini APIを活用して、Outlook（Microsoft 365）に届く予約メールを解析し、Googleカレンダーへ自動登録・同期する自動化ツールです。
 勉強用に開発したものです。
