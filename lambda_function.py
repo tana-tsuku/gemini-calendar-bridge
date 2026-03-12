@@ -88,19 +88,23 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 if event_id:
                     process_success = True
             elif action == "CANCEL":
-                if calendar.cancel_event(booking_id):
+                if calendar.cancel_event(
+                    booking_id=booking_id,
+                    start_time=booking_data.get("start_time"),
+                    end_time=booking_data.get("end_time"),
+                ):
                     process_success = True
             else:
                 logger.warning(f"未知のアクション '{action}' のためスキップします。")
 
-            # 4.3 冪等性の担保: 成功した場合のみ、メールを既読にして次回の再処理を防ぐ
+            # 4.3 冪等性の担保: 成功した場合のみ、メールのフラグを完了にして次回の再処理を防ぐ
             # コンテキストマネージャ (with 構文) の代替として、ここでは状態ベースのステートマシン的な処理を適用
             if process_success:
-                logger.info("カレンダー連携が成功しました。メールを既読に更新します。")
-                if outlook.mark_as_read(msg_id):
+                logger.info("カレンダー連携が成功しました。メールのフラグを完了済みに更新します。")
+                if outlook.mark_as_processed(msg_id):
                     success_count += 1
                 else:
-                    logger.error("カレンダー登録は成功しましたが既読処理に失敗しました。（次回重複処理される可能性があります）")
+                    logger.error("カレンダー登録は成功しましたがフラグ更新処理に失敗しました。（次回重複処理される可能性があります）")
                     error_count += 1
             else:
                 logger.error("カレンダー連携に失敗したため、メールは未読のまま残します。")
