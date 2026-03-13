@@ -58,26 +58,39 @@ class CalendarClient:
             # タイムゾーンの取得（環境変数 TZ があればそれを使用。デフォルトは Asia/Tokyo）
             time_zone = Config.get_env_var("TZ", "Asia/Tokyo")
 
+            start_time = booking_data.get('start_time')
+            end_time = booking_data.get('end_time')
+            booking_id = booking_data.get('booking_id')
+
             # Google Calendar API イベントリソースの形式に従って構築
             event_body = {
                 'summary': booking_data.get('title', 'サービス予約'),
-                'start': {
-                    'dateTime': booking_data.get('start_time'),
-                    'timeZone': time_zone,
-                },
-                'end': {
-                    'dateTime': booking_data.get('end_time'),
-                    'timeZone': time_zone,
-                },
-                # 外部システム（ここでは予約管理）のIDを保持（キャンセル検索用）
-                'extendedProperties': {
-                    'private': {
-                        'booking_id': booking_data.get('booking_id')
-                    }
-                }
             }
 
-            logger.info(f"イベント作成リクエスト: {event_body['summary']} (ID: {booking_data.get('booking_id')})")
+            # 必須項目のバリデーションを設定
+            if start_time and end_time:
+                event_body['start'] = {
+                    'dateTime': start_time,
+                    'timeZone': time_zone,
+                }
+                event_body['end'] = {
+                    'dateTime': end_time,
+                    'timeZone': time_zone,
+                }
+            else:
+                logger.error("start_time または end_time が不足しているため、イベントを作成できません。")
+                return None
+
+            # 外部システム（ここでは予約管理）のIDを保持（キャンセル検索用）
+            # NoneがAPIに渡ると 400 Required エラーが発生するため、存在する場合のみ追加する
+            if booking_id:
+                event_body['extendedProperties'] = {
+                    'private': {
+                        'booking_id': str(booking_id)
+                    }
+                }
+
+            logger.info(f"イベント作成リクエスト: {event_body['summary']} (ID: {booking_id})")
             
             created_event = self.service.events().insert(
                 calendarId=self.calendar_id, body=event_body

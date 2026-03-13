@@ -37,7 +37,7 @@ class GeminiParser:
             "返却は必ず以下のJSONフォーマットのみで行うこと。\n"
             "{\n"
             '  "action": "CREATE" または "CANCEL",\n'
-            '  "title": "サービス予約: [サービス名]",\n'
+            '  "title": "[サービス名]",\n'
             '  "start_time": "ISO8601形式の日時",\n'
             '  "end_time": "ISO8601形式の日時（不明な場合は開始の30分後）",\n'
             '  "booking_id": "メールに含まれる固有の予約番号（削除時のキー）"\n'
