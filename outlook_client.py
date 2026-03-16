@@ -63,7 +63,7 @@ class OutlookClient:
             "Content-Type": "application/json"
         }
 
-    def fetch_unread_messages(self) -> List[Dict[str, Any]]:
+    def fetch_messages(self) -> List[Dict[str, Any]]:
         """
         受信トレイからメッセージを取得する。
         
