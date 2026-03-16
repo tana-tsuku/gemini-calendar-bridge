@@ -89,9 +89,9 @@ class Config:
         secret_name = cls.get_env_var("GRAPH_API_SECRET_NAME", "graph-api-credentials")
         secrets = cls.get_secret(secret_name)
         return {
-            "client_id": secrets.get("CLIENT_ID") or cls.get_env_var("GRAPH_CLIENT_ID"),
-            "client_secret": secrets.get("CLIENT_SECRET") or cls.get_env_var("GRAPH_CLIENT_SECRET"),
-            "tenant_id": secrets.get("TENANT_ID") or cls.get_env_var("GRAPH_TENANT_ID"),
+            "client_id": secrets.get("GRAPH_CLIENT_ID") or cls.get_env_var("GRAPH_CLIENT_ID"),
+            "client_secret": secrets.get("GRAPH_CLIENT_SECRET") or cls.get_env_var("GRAPH_CLIENT_SECRET"),
+            "tenant_id": secrets.get("GRAPH_TENANT_ID") or cls.get_env_var("GRAPH_TENANT_ID"),
         }
 
     @classmethod
@@ -99,7 +99,7 @@ class Config:
         """Gemini APIキーを取得する"""
         secret_name = cls.get_env_var("GEMINI_API_SECRET_NAME", "gemini-api-key")
         secrets = cls.get_secret(secret_name)
-        return secrets.get("API_KEY") or cls.get_env_var("GEMINI_API_KEY")
+        return secrets.get("GEMINI_API_KEY") or cls.get_env_var("GEMINI_API_KEY")
         
     @classmethod
     def get_google_calendar_credentials(cls) -> Dict[str, Any]:

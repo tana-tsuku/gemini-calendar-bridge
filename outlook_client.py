@@ -63,9 +63,9 @@ class OutlookClient:
             "Content-Type": "application/json"
         }
 
-    def fetch_unread_messages(self) -> List[Dict[str, Any]]:
+    def fetch_messages(self) -> List[Dict[str, Any]]:
         """
-        受信トレイから未読メッセージを取得する。
+        受信トレイからメッセージを取得する。
         
         ベストプラクティス: 
         APIのレスポンスサイズを抑えるため $select で取得するフィールドを限定し、
@@ -73,34 +73,36 @@ class OutlookClient:
         """
         url = f"{self.base_url}/users/{self.user_principal_name}/mailFolders/inbox/messages"
         
-        # $filter: 未読のみ取得
+        # $filter: フラグがついていないもののみ取得
         # $select: 必要なプロパティだけ絞り込み
         params = {
-            "$filter": "isRead eq false",
-            "$select": "id,subject,bodyPreview,body,from",
+            "$filter": "flag/flagStatus eq 'notFlagged'",
+            "$select": "id,subject,bodyPreview,body,from,flag",
             "$top": 50
         }
 
         try:
-            logger.info("未読メールを取得しています...")
+            logger.info("メールを取得しています...")
             response = requests.get(url, headers=self._get_headers(), params=params)
             response.raise_for_status()
             
             data = response.json()
             messages = data.get("value", [])
-            logger.info(f"{len(messages)} 件の未読メールが見つかりました。")
+            logger.info(f"{len(messages)} 件のメールが見つかりました。")
             return messages
         except requests.exceptions.RequestException as e:
             logger.error(f"メール取得リクエストに失敗しました: {e}")
             return []
 
-    def mark_as_read(self, message_id: str) -> bool:
-        """特定のメールの `isRead` フラグを True に更新（既読化）する"""
+    def mark_as_processed(self, message_id: str) -> bool:
+        """特定のメールのフラグを完了（complete）状態に更新する"""
         url = f"{self.base_url}/users/{self.user_principal_name}/messages/{message_id}"
-        payload = {"isRead": True}
+        
+        # Graph API仕様: complete, flagged, notFlagged のいずれか
+        payload = {"flag": {"flagStatus": "complete"}}
         
         try:
-            logger.info(f"メール(ID: {message_id}) を既読にします...")
+            logger.info(f"メール(ID: {message_id}) のフラグを完了にします...")  
             # 部分的なリソースの更新には PATCH メソッドを使用します
             response = requests.patch(
                 url, 
@@ -108,10 +110,10 @@ class OutlookClient:
                 json=payload
             )
             response.raise_for_status()
-            logger.info("既読処理に成功しました。")
+            logger.info("処理済みフラグを立てました。")
             return True
         except requests.exceptions.RequestException as e:
-            logger.error(f"既読処理に失敗しました: {e}")
+            logger.error(f"処理済みフラグを立てるのに失敗しました: {e}")
             return False
 
     def filter_messages(self, messages: List[Dict[str, Any]], filters: Dict[str, Any]) -> List[Dict[str, Any]]:
