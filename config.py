@@ -84,10 +84,15 @@ class Config:
             return {}
 
     @classmethod
+    def get_consolidated_secrets(cls) -> Dict[str, Any]:
+        """統合シークレット「gemini-calendar-bridge」から全ての認証情報を取得する"""
+        secret_name = "gemini-calendar-bridge"
+        return cls.get_secret(secret_name)
+
+    @classmethod
     def get_graph_api_credentials(cls) -> Dict[str, str]:
         """Microsoft Graph API のクレデンシャルを取得する"""
-        secret_name = cls.get_env_var("GRAPH_API_SECRET_NAME", "graph-api-credentials")
-        secrets = cls.get_secret(secret_name)
+        secrets = cls.get_consolidated_secrets()
         return {
             "client_id": secrets.get("GRAPH_CLIENT_ID") or cls.get_env_var("GRAPH_CLIENT_ID"),
             "client_secret": secrets.get("GRAPH_CLIENT_SECRET") or cls.get_env_var("GRAPH_CLIENT_SECRET"),
@@ -97,16 +102,29 @@ class Config:
     @classmethod
     def get_gemini_api_key(cls) -> str:
         """Gemini APIキーを取得する"""
-        secret_name = cls.get_env_var("GEMINI_API_SECRET_NAME", "gemini-api-key")
-        secrets = cls.get_secret(secret_name)
+        secrets = cls.get_consolidated_secrets()
         return secrets.get("GEMINI_API_KEY") or cls.get_env_var("GEMINI_API_KEY")
         
     @classmethod
     def get_google_calendar_credentials(cls) -> Dict[str, Any]:
         """Google Calendar API の認証情報（JSON）を取得する"""
-        secret_name = cls.get_env_var("GOOGLE_CALENDAR_SECRET_NAME", "google-calendar-credentials")
-        secrets = cls.get_secret(secret_name)
+        secrets = cls.get_consolidated_secrets()
         
+        # 統合シークレットからGoogle Calendar認証情報を取得
+        # JSON形式のシークレット全体がGoogle Calendar認証情報の場合と、
+        # GOOGLE_CALENDAR_CREDENTIALSキーでネストされている場合の両方に対応
+        google_creds = secrets.get("GOOGLE_CALENDAR_CREDENTIALS")
+        if google_creds:
+            # JSON文字列として格納されている場合のパース対応
+            if isinstance(google_creds, str):
+                try:
+                    return json.loads(google_creds)
+                except json.JSONDecodeError:
+                    logger.error("GOOGLE_CALENDAR_CREDENTIALSのJSON解析に失敗しました。")
+                    return {}
+            return google_creds
+        
+        # 統合シークレットに認証情報がない場合のフォールバック
         if not secrets:
             # ローカル環境用のフォールバック：JSONファイルからの読み込み
             local_path = cls.get_env_var("GOOGLE_APPLICATION_CREDENTIALS")
@@ -114,4 +132,5 @@ class Config:
                 logger.info(f"ローカルの認証情報ファイル '{local_path}' を読み込みます。")
                 with open(local_path, "r", encoding="utf-8") as f:
                     return json.load(f)
+        
         return secrets
