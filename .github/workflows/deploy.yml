@@ -1,0 +1,52 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write  # OIDC認証に必要
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          uv pip install -r requirements.txt --target package/
+
+      - name: Create deployment package
+        run: |
+          cd package
+          zip -r ../deployment_package.zip .
+          cd ..
+          zip deployment_package.zip \
+            lambda_function.py \
+            config.py \
+            logger.py \
+            outlook_client.py \
+            gemini_parser.py \
+            calendar_client.py
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+
+      - name: Deploy to Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name gemini-calendar-bridge \
+            --zip-file fileb://deployment_package.zip

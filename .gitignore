@@ -208,5 +208,6 @@ __marimo__/
 
 # For AWS Lambda
 package/
-deployment_package.zip
+*.zip
 zip作成手順.txt
+iam_setup/
