@@ -50,6 +50,8 @@ jobs:
           aws lambda update-function-code \
             --function-name gemini-calendar-bridge \
             --zip-file fileb://deployment_package.zip
+          aws lambda wait function-updated \
+            --function-name gemini-calendar-bridge
 
       - name: Publish Lambda version
         run: |
