@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 from config import Config
 from logger import get_logger
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 # ただし、今回は設定エラーなどで起動不能になるのを防ぐため、最低限の初期化をハンドラ内で行います。
 # 運用フェーズに入って設定が安定したら、これらの初期化を外に出す構成をお勧めします。
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: Dict[str, Any], context: Union[Any, None]) -> Dict[str, Any]:
     """
     AWS Lambda のエントリポイント（メインロジック）。
     定期実行（EventBridge）をトリガーとする想定です。
@@ -76,8 +76,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 error_count += 1
                 continue
                 
-            action = booking_data.get("action")
-            booking_id = booking_data.get("booking_id")
+            action = booking_data.get("action", "")
+            booking_id = booking_data.get("booking_id", "")
             
             logger.info(f"解析結果: Action={action}, Booking ID={booking_id}")
 

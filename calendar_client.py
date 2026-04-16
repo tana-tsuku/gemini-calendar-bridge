@@ -173,7 +173,10 @@ class CalendarClient:
 
             # 一致したイベントを全削除（通常は1件を想定）
             for target_event in events:
-                event_id = target_event['id']
+                event_id = target_event.get('id', '')
+                if not event_id:
+                    logger.warning("イベントIDが見つからないためスキップします。")
+                    continue
                 logger.info(f"イベント(Event ID: {event_id}) を削除します...")
                 self.service.events().delete(
                     calendarId=self.calendar_id, eventId=event_id

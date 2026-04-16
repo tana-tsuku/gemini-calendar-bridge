@@ -94,16 +94,16 @@ class Config:
         """Microsoft Graph API のクレデンシャルを取得する"""
         secrets = cls.get_consolidated_secrets()
         return {
-            "client_id": secrets.get("GRAPH_CLIENT_ID") or cls.get_env_var("GRAPH_CLIENT_ID"),
-            "client_secret": secrets.get("GRAPH_CLIENT_SECRET") or cls.get_env_var("GRAPH_CLIENT_SECRET"),
-            "tenant_id": secrets.get("GRAPH_TENANT_ID") or cls.get_env_var("GRAPH_TENANT_ID"),
+            "client_id": secrets.get("GRAPH_CLIENT_ID", "") or cls.get_env_var("GRAPH_CLIENT_ID"),
+            "client_secret": secrets.get("GRAPH_CLIENT_SECRET", "") or cls.get_env_var("GRAPH_CLIENT_SECRET"),
+            "tenant_id": secrets.get("GRAPH_TENANT_ID", "") or cls.get_env_var("GRAPH_TENANT_ID"),
         }
 
     @classmethod
     def get_gemini_api_key(cls) -> str:
         """Gemini APIキーを取得する"""
         secrets = cls.get_consolidated_secrets()
-        return secrets.get("GEMINI_API_KEY") or cls.get_env_var("GEMINI_API_KEY")
+        return secrets.get("GEMINI_API_KEY", "") or cls.get_env_var("GEMINI_API_KEY")
         
     @classmethod
     def get_google_calendar_credentials(cls) -> Dict[str, Any]:
@@ -113,7 +113,7 @@ class Config:
         # 統合シークレットからGoogle Calendar認証情報を取得
         # JSON形式のシークレット全体がGoogle Calendar認証情報の場合と、
         # GOOGLE_CALENDAR_CREDENTIALSキーでネストされている場合の両方に対応
-        google_creds = secrets.get("GOOGLE_CALENDAR_CREDENTIALS")
+        google_creds = secrets.get("GOOGLE_CALENDAR_CREDENTIALS", None)
         if google_creds:
             # JSON文字列として格納されている場合のパース対応
             if isinstance(google_creds, str):
