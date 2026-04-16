@@ -75,7 +75,7 @@ class GeminiParser:
                 )
             )
             
-            response_text = response.text.strip()
+            response_text = response.text.strip() if response.text else ""
             logger.info("Geminiによる解析が完了しました。")
             
             try:

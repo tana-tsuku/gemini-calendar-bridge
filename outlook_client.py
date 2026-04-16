@@ -26,9 +26,9 @@ class OutlookClient:
         """
         self.user_principal_name = user_principal_name
         self.credentials = Config.get_graph_api_credentials()
-        self.tenant_id = self.credentials.get("tenant_id")
-        self.client_id = self.credentials.get("client_id")
-        self.client_secret = self.credentials.get("client_secret")
+        self.tenant_id = self.credentials.get("tenant_id", "")
+        self.client_id = self.credentials.get("client_id", "")
+        self.client_secret = self.credentials.get("client_secret", "")
         
         if not all([self.tenant_id, self.client_id, self.client_secret]):
             logger.error("Graph APIのクレデンシャルに不足があります。")
@@ -140,9 +140,9 @@ class OutlookClient:
                 # 件名にキーワードが含まれ、かつ差出人が一致するか判定（大文字小文字を区別しない）
                 if rule_subject in subject and rule_sender.lower() == sender_address.lower():
                     # 後の解析で使いやすいようにアクション情報（CREATE/CANCEL）を埋め込む
-                    msg["_action_hint"] = rule.get("action")
+                    msg["_action_hint"] = rule.get("action", "")
                     filtered.append(msg)
-                    logger.info(f"フィルタに一致したメールを抽出: '{subject}' (Action: {rule.get('action')})")
+                    logger.info(f"フィルタに一致したメールを抽出: '{subject}' (Action: {rule.get('action', '')})")
                     break  # 重複処理を防ぐため、1つのルールに合致したらブレイク
                     
         return filtered
