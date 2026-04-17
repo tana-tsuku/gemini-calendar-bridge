@@ -56,11 +56,14 @@ class CalendarClient:
         """
         try:
             # タイムゾーンの取得（環境変数 TZ があればそれを使用。デフォルトは Asia/Tokyo）
-            time_zone = Config.get_env_var("TZ", "Asia/Tokyo")
+            # TZ="" (空文字) の場合も "Asia/Tokyo" にフォールバックする
+            time_zone = Config.get_env_var("TZ", "Asia/Tokyo") or "Asia/Tokyo"
 
             start_time = booking_data.get('start_time')
             end_time = booking_data.get('end_time')
             booking_id = booking_data.get('booking_id')
+
+            logger.info(f"イベント作成パラメータ: start={start_time}, end={end_time}, tz={time_zone}")
 
             # Google Calendar API イベントリソースの形式に従って構築
             event_body = {
