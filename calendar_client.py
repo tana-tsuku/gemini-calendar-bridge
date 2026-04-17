@@ -140,11 +140,21 @@ class CalendarClient:
             elif start_time and end_time:
                 logger.info(f"booking_id が未指定のため、期間 ({start_time} ～ {end_time}) でイベントを検索中...")
 
+                # タイムゾーン情報を取得（Lambda の TZ はシステム変数と競合するため専用変数 CALENDAR_TIMEZONE を使用）
+                time_zone = Config.get_env_var("CALENDAR_TIMEZONE", "") or "Asia/Tokyo"
+                
+                # Google Calendar API の timeMin/timeMax パラメータには RFC3339 形式（タイムゾーン付き）が必要
+                # ISO8601 形式の datetime にタイムゾーン情報を追加
+                search_start_time = self._ensure_timezone_format(start_time, time_zone)
+                search_end_time = self._ensure_timezone_format(end_time, time_zone)
+
+                logger.info(f"検索用時刻フォーマット変換: {start_time} -> {search_start_time}, {end_time} -> {search_end_time}")
+
                 # timeMin / timeMax で範囲検索。singleEvents=True で繰り返しイベントも展開
                 response = self.service.events().list(
                     calendarId=self.calendar_id,
-                    timeMin=start_time,
-                    timeMax=end_time,
+                    timeMin=search_start_time,
+                    timeMax=search_end_time,
                     singleEvents=True,
                 ).execute()
 
@@ -193,3 +203,30 @@ class CalendarClient:
         except Exception as e:
             logger.error(f"予期せぬエラーが発生しました: {e}")
             return False
+
+    def _ensure_timezone_format(self, datetime_str: str, timezone: str = "Asia/Tokyo") -> str:
+        """
+        ISO8601形式の日時文字列をRFC3339形式（タイムゾーン付き）に変換する。
+        Google Calendar API の timeMin/timeMax パラメータで必要。
+
+        Args:
+            datetime_str (str): ISO8601形式の日時文字列（例: "2026-05-09T15:00:00"）
+            timezone (str): タイムゾーン名（例: "Asia/Tokyo"）
+
+        Returns:
+            str: RFC3339形式の日時文字列（例: "2026-05-09T15:00:00+09:00"）
+        """
+        if not datetime_str:
+            return datetime_str
+        
+        # 既にタイムゾーン情報が含まれている場合はそのまま返す
+        if '+' in datetime_str or 'Z' in datetime_str:
+            return datetime_str
+        
+        # Asia/Tokyo の場合は +09:00 を追加（JST固定）
+        # より汎用的な実装が必要な場合は pytz ライブラリを使用
+        if timezone == "Asia/Tokyo":
+            return f"{datetime_str}+09:00"
+        
+        # その他のタイムゾーンの場合はUTCとして扱う（フォールバック）
+        return f"{datetime_str}Z"
