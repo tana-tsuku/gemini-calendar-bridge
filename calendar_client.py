@@ -220,13 +220,37 @@ class CalendarClient:
             return datetime_str
         
         # 既にタイムゾーン情報が含まれている場合はそのまま返す
-        if '+' in datetime_str or 'Z' in datetime_str:
+        if '+' in datetime_str or 'Z' in datetime_str or datetime_str.endswith(('Z', '+00:00')):
             return datetime_str
         
-        # Asia/Tokyo の場合は +09:00 を追加（JST固定）
-        # より汎用的な実装が必要な場合は pytz ライブラリを使用
-        if timezone == "Asia/Tokyo":
-            return f"{datetime_str}+09:00"
+        # Python の datetime モジュールを使用して適切なRFC3339形式に変換
+        from datetime import datetime, timezone as dt_timezone, timedelta
         
-        # その他のタイムゾーンの場合はUTCとして扱う（フォールバック）
-        return f"{datetime_str}Z"
+        try:
+            # ISO8601形式の文字列をパース
+            # 秒の部分が含まれていない場合も対応
+            if '.' not in datetime_str and len(datetime_str.split('T')[1]) == 5:
+                # "2026-05-09T15:00" 形式の場合、秒を追加
+                datetime_str = f"{datetime_str}:00"
+            
+            # datetimeオブジェクトにパース
+            dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+            
+            # タイムゾーン情報を追加
+            if timezone == "Asia/Tokyo":
+                # JST（UTC+9）を設定
+                jst = dt_timezone(timedelta(hours=9))
+                dt = dt.replace(tzinfo=jst)
+            else:
+                # その他のタイムゾーンの場合はUTCとして扱う
+                dt = dt.replace(tzinfo=dt_timezone.utc)
+            
+            # RFC3339形式の文字列として出力
+            return dt.isoformat()
+            
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"日時フォーマットの変換に失敗しました: {datetime_str}, エラー: {e}")
+            # フォールバック：元の実装
+            if timezone == "Asia/Tokyo":
+                return f"{datetime_str}+09:00"
+            return f"{datetime_str}Z"
