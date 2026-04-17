@@ -55,9 +55,8 @@ class CalendarClient:
             Optional[str]: 作成されたイベントID（失敗時は None）
         """
         try:
-            # タイムゾーンの取得（環境変数 TZ があればそれを使用。デフォルトは Asia/Tokyo）
-            # TZ="" (空文字) の場合も "Asia/Tokyo" にフォールバックする
-            time_zone = Config.get_env_var("TZ", "Asia/Tokyo") or "Asia/Tokyo"
+            # タイムゾーンの取得（Lambda の TZ はシステム変数と競合するため専用変数 CALENDAR_TIMEZONE を使用）
+            time_zone = Config.get_env_var("CALENDAR_TIMEZONE", "") or "Asia/Tokyo"
 
             start_time = booking_data.get('start_time')
             end_time = booking_data.get('end_time')
