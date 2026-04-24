@@ -140,19 +140,21 @@ class CalendarClient:
             elif start_time and end_time:
                 logger.info(f"booking_id が未指定のため、期間 ({start_time} ～ {end_time}) でイベントを検索中...")
 
-                # Gemini が TZ なしで返す場合があるため +09:00 を付加して RFC3339 形式にする。
-                # この変換後の値を API 呼び出しと完全一致比較の両方で使う。
-                if "+" not in start_time and "Z" not in start_time:
-                    start_time = start_time + "+09:00"
-                if "+" not in end_time and "Z" not in end_time:
-                    end_time = end_time + "+09:00"
-                logger.info(f"検索用時刻フォーマット変換: {start_time}, {end_time}")
+                # タイムゾーン情報を取得（Lambda の TZ はシステム変数と競合するため専用変数 CALENDAR_TIMEZONE を使用）
+                time_zone = Config.get_env_var("CALENDAR_TIMEZONE", "") or "Asia/Tokyo"
+
+                # Google Calendar API の timeMin/timeMax パラメータには RFC3339 形式（タイムゾーン付き）が必要
+                # ISO8601 形式の datetime にタイムゾーン情報を追加
+                search_start_time = self._ensure_timezone_format(start_time, time_zone)
+                search_end_time = self._ensure_timezone_format(end_time, time_zone)
+
+                logger.info(f"検索用時刻フォーマット変換: {start_time} -> {search_start_time}, {end_time} -> {search_end_time}")
 
                 # timeMin / timeMax で範囲検索。singleEvents=True で繰り返しイベントも展開
                 response = self.service.events().list(
                     calendarId=self.calendar_id,
-                    timeMin=start_time,
-                    timeMax=end_time,
+                    timeMin=search_start_time,
+                    timeMax=search_end_time,
                     singleEvents=True,
                 ).execute()
 
@@ -166,11 +168,12 @@ class CalendarClient:
 
             # start_time / end_time 検索時は「範囲内に存在する全イベント」が返るため、
             # 開始・終了日時が完全一致するイベントのみに絞り込んで誤削除を防ぐ
+            # API呼び出しと同じ TZ 付き形式（search_start_time / search_end_time）で比較する
             if start_time and end_time and not booking_id:
                 events = [
                     e for e in events
-                    if e.get('start', {}).get('dateTime') == start_time
-                    and e.get('end', {}).get('dateTime') == end_time
+                    if e.get('start', {}).get('dateTime') == search_start_time
+                    and e.get('end', {}).get('dateTime') == search_end_time
                 ]
                 if not events:
                     logger.warning(
@@ -201,3 +204,54 @@ class CalendarClient:
         except Exception as e:
             logger.error(f"予期せぬエラーが発生しました: {e}")
             return False
+
+    def _ensure_timezone_format(self, datetime_str: str, timezone: str = "Asia/Tokyo") -> str:
+        """
+        ISO8601形式の日時文字列をRFC3339形式（タイムゾーン付き）に変換する。
+        Google Calendar API の timeMin/timeMax パラメータで必要。
+
+        Args:
+            datetime_str (str): ISO8601形式の日時文字列（例: "2026-05-09T15:00:00"）
+            timezone (str): タイムゾーン名（例: "Asia/Tokyo"）
+
+        Returns:
+            str: RFC3339形式の日時文字列（例: "2026-05-09T15:00:00+09:00"）
+        """
+        if not datetime_str:
+            return datetime_str
+        
+        # 既にタイムゾーン情報が含まれている場合はそのまま返す
+        if '+' in datetime_str or 'Z' in datetime_str or datetime_str.endswith(('Z', '+00:00')):
+            return datetime_str
+        
+        # Python の datetime モジュールを使用して適切なRFC3339形式に変換
+        from datetime import datetime, timezone as dt_timezone, timedelta
+        
+        try:
+            # ISO8601形式の文字列をパース
+            # 秒の部分が含まれていない場合も対応
+            if '.' not in datetime_str and len(datetime_str.split('T')[1]) == 5:
+                # "2026-05-09T15:00" 形式の場合、秒を追加
+                datetime_str = f"{datetime_str}:00"
+            
+            # datetimeオブジェクトにパース
+            dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+            
+            # タイムゾーン情報を追加
+            if timezone == "Asia/Tokyo":
+                # JST（UTC+9）を設定
+                jst = dt_timezone(timedelta(hours=9))
+                dt = dt.replace(tzinfo=jst)
+            else:
+                # その他のタイムゾーンの場合はUTCとして扱う
+                dt = dt.replace(tzinfo=dt_timezone.utc)
+            
+            # RFC3339形式の文字列として出力
+            return dt.isoformat()
+            
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"日時フォーマットの変換に失敗しました: {datetime_str}, エラー: {e}")
+            # フォールバック：元の実装
+            if timezone == "Asia/Tokyo":
+                return f"{datetime_str}+09:00"
+            return f"{datetime_str}Z"
