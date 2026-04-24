@@ -140,6 +140,14 @@ class CalendarClient:
             elif start_time and end_time:
                 logger.info(f"booking_id が未指定のため、期間 ({start_time} ～ {end_time}) でイベントを検索中...")
 
+                # Gemini が TZ なしで返す場合があるため +09:00 を付加して RFC3339 形式にする。
+                # この変換後の値を API 呼び出しと完全一致比較の両方で使う。
+                if "+" not in start_time and "Z" not in start_time:
+                    start_time = start_time + "+09:00"
+                if "+" not in end_time and "Z" not in end_time:
+                    end_time = end_time + "+09:00"
+                logger.info(f"検索用時刻フォーマット変換: {start_time}, {end_time}")
+
                 # timeMin / timeMax で範囲検索。singleEvents=True で繰り返しイベントも展開
                 response = self.service.events().list(
                     calendarId=self.calendar_id,
